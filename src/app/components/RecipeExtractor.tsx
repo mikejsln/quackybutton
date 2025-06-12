@@ -2,6 +2,19 @@
 import { useState } from "react";
 import RecipeCard from "./RecipeCard";
 
+// Update Recipe type
+type Recipe = {
+  title: string;
+  description?: string;
+  imageUrl?: string;
+  author?: {
+    username: string;
+    avatarUrl: string;
+  };
+  ingredients?: string[];
+  instructions?: string[];
+};
+
 function Modal({ open, onClose, children }: { open: boolean; onClose: () => void; children: React.ReactNode }) {
   if (!open) return null;
   return (
@@ -16,12 +29,12 @@ function Modal({ open, onClose, children }: { open: boolean; onClose: () => void
 
 export default function RecipeExtractor() {
   const [uploadedImages, setUploadedImages] = useState<File[]>([]);
-  const [extractedRecipes, setExtractedRecipes] = useState<any[]>([]);
+  const [extractedRecipes, setExtractedRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
-  const [pendingRecipe, setPendingRecipe] = useState<any>(null);
+  const [pendingRecipe, setPendingRecipe] = useState<Recipe | null>(null);
   const [editMode, setEditMode] = useState(false);
-  const [editRecipe, setEditRecipe] = useState<any>(null);
+  const [editRecipe, setEditRecipe] = useState<Recipe | null>(null);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -49,7 +62,9 @@ export default function RecipeExtractor() {
   };
 
   const handleAccept = () => {
-    setExtractedRecipes((prev) => [pendingRecipe, ...prev]);
+    if (pendingRecipe && pendingRecipe.title) {
+      setExtractedRecipes((prev) => [pendingRecipe, ...prev.filter(r => r)]);
+    }
     setModalOpen(false);
     setPendingRecipe(null);
     setEditMode(false);
@@ -57,24 +72,29 @@ export default function RecipeExtractor() {
   };
 
   const handleEdit = () => {
+    if (!pendingRecipe) return;
     setEditMode(true);
-    setEditRecipe({ ...pendingRecipe });
+    setEditRecipe({ ...pendingRecipe, title: pendingRecipe.title || 'Untitled Recipe' });
   };
 
-  const handleEditChange = (field: string, value: string) => {
-    setEditRecipe((prev: any) => ({ ...prev, [field]: value }));
+  const handleEditChange = (field: keyof Recipe, value: string) => {
+    setEditRecipe((prev) => prev ? { ...prev, [field]: value, title: prev.title || 'Untitled Recipe' } : null);
   };
 
-  const handleEditListChange = (field: string, idx: number, value: string) => {
-    setEditRecipe((prev: any) => {
-      const updated = [...(prev[field] || [])];
+  const handleEditListChange = (field: keyof Recipe, idx: number, value: string) => {
+    setEditRecipe((prev) => {
+      if (!prev) return null;
+      const arr = (prev[field] as string[]) || [];
+      const updated = [...arr];
       updated[idx] = value;
-      return { ...prev, [field]: updated };
+      return { ...prev, [field]: updated, title: prev.title || 'Untitled Recipe' };
     });
   };
 
   const handleSaveEdit = () => {
-    setExtractedRecipes((prev) => [editRecipe, ...prev]);
+    if (editRecipe && editRecipe.title) {
+      setExtractedRecipes((prev) => [editRecipe, ...prev.filter(r => r)]);
+    }
     setModalOpen(false);
     setPendingRecipe(null);
     setEditMode(false);
@@ -97,7 +117,7 @@ export default function RecipeExtractor() {
         {pendingRecipe && !editMode && (
           <div>
             <h2 className="text-xl font-bold mb-2">Extracted Recipe</h2>
-            <RecipeCard {...pendingRecipe} />
+            <RecipeCard {...{...pendingRecipe, title: pendingRecipe?.title || 'Untitled Recipe'}} />
             <div className="flex flex-col sm:flex-row justify-end gap-2 mt-4">
               <button onClick={handleEdit} className="px-4 py-2 bg-yellow-500 text-white rounded w-full sm:w-auto">Edit</button>
               <button onClick={handleAccept} className="px-4 py-2 bg-green-600 text-white rounded w-full sm:w-auto">Accept</button>
@@ -136,7 +156,7 @@ export default function RecipeExtractor() {
       </Modal>
       <div className="mt-6 space-y-6">
         {extractedRecipes.map((recipe, idx) => (
-          <RecipeCard key={idx} {...recipe} />
+          <RecipeCard key={idx} {...{...recipe, title: recipe.title || 'Untitled Recipe'}} />
         ))}
       </div>
     </div>

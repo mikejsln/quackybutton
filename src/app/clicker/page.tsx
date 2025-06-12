@@ -6,8 +6,6 @@ const LEVELS = [
   "Duckling", "Quacker", "Feathered", "Waddler", "Splash", "Pond King", "Mallard", "Golden Egg", "Quackstar", "Infinity"
 ];
 
-const DUCK_WALLPAPER = "/duck-wallpaper.jpg"; // Replace with actual image later
-
 // Add silly duck faces
 const DUCK_FACES = [
   "🦆", "🐤", "🐥", "🪿", "😆", "😜", "🤪", "😝", "😂", "🥚", "👑", "🎩", "😎", "👀", "💩", "👻", "🥸", "😏", "😲", "😳", "😱"
@@ -66,9 +64,16 @@ export default function ClickerGame() {
     }
   }, [clicks]);
 
+  const getAudioContext = () => {
+    if (typeof window === 'undefined') return undefined;
+    const win = window as Window & typeof globalThis & { webkitAudioContext?: typeof AudioContext };
+    return win.AudioContext || win.webkitAudioContext;
+  };
+
   useEffect(() => {
     if (audioCtxRef.current == null && typeof window !== 'undefined') {
-      audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const AC = getAudioContext();
+      if (AC) audioCtxRef.current = new AC();
     }
     if (!quackBufferRef.current && !loadingSoundRef.current && audioCtxRef.current) {
       loadingSoundRef.current = true;
@@ -109,7 +114,8 @@ export default function ClickerGame() {
   // Load silly sounds
   useEffect(() => {
     if (audioCtxRef.current == null && typeof window !== 'undefined') {
-      audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const AC = getAudioContext();
+      if (AC) audioCtxRef.current = new AC();
     }
     SILLY_SOUNDS.forEach(sound => {
       if (!sillyBuffersRef.current[sound] && audioCtxRef.current) {
@@ -126,7 +132,7 @@ export default function ClickerGame() {
   function playSillySound(withEcho: boolean) {
     if (!audioCtxRef.current) return;
     // 80% quack, 20% random silly
-    let sound = Math.random() < 0.8 ? '/quack.mp3' : SILLY_SOUNDS[Math.floor(Math.random() * SILLY_SOUNDS.length)];
+    const sound = Math.random() < 0.8 ? '/quack.mp3' : SILLY_SOUNDS[Math.floor(Math.random() * SILLY_SOUNDS.length)];
     const buffer = sillyBuffersRef.current[sound] || quackBufferRef.current;
     if (!buffer) return;
     const ctx = audioCtxRef.current;
@@ -209,12 +215,14 @@ export default function ClickerGame() {
   }, [wobble]);
 
   // Calculate average clicks per minute (last 10 clicks)
-  let avgCPM = 0;
-  if (clickTimestamps.length > 1) {
-    const intervals = clickTimestamps.slice(1).map((t, i) => t - clickTimestamps[i]);
-    const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
-    avgCPM = avgInterval > 0 ? Math.round(60000 / avgInterval) : 0;
-  }
+  const avgCPM = (() => {
+    if (clickTimestamps.length > 1) {
+      const intervals = clickTimestamps.slice(1).map((t, i) => t - clickTimestamps[i]);
+      const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+      return avgInterval > 0 ? Math.round(60000 / avgInterval) : 0;
+    }
+    return 0;
+  })();
 
   // Animate confetti
   useEffect(() => {

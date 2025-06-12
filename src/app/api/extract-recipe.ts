@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Tesseract from 'tesseract.js';
-import { OpenAIApi, Configuration } from 'openai';
+import OpenAI from 'openai';
 
 export const config = {
   api: {
@@ -11,7 +11,7 @@ export const config = {
 export async function POST(req: NextRequest) {
   const formData = await req.formData();
   const files = formData.getAll('images') as File[];
-  let ocrTexts: string[] = [];
+  const ocrTexts: string[] = [];
 
   for (const file of files) {
     const arrayBuffer = await file.arrayBuffer();
@@ -23,10 +23,9 @@ export async function POST(req: NextRequest) {
   const combinedText = ocrTexts.join('\n');
 
   // Use OpenAI to parse and fill in recipe details
-  const configuration = new Configuration({ apiKey: process.env.OPENAI_API_KEY });
-  const openai = new OpenAIApi(configuration);
+  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   const prompt = `Extract the recipe name, ingredients (as a list), and instructions (as a list of steps) from the following text. Fill in any missing or unclear information as needed.\n\n${combinedText}`;
-  const completion = await openai.createChatCompletion({
+  const completion = await openai.chat.completions.create({
     model: 'gpt-3.5-turbo',
     messages: [
       { role: 'system', content: 'You are a helpful assistant that extracts and completes recipes from OCR text.' },
@@ -34,7 +33,7 @@ export async function POST(req: NextRequest) {
     ],
     temperature: 0.2,
   });
-  const responseText = completion.data.choices[0].message?.content || '';
+  const responseText = completion.choices[0].message?.content || '';
 
   // Simple parsing: expect OpenAI to return JSON
   let recipe;
